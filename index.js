@@ -4,7 +4,10 @@ var through   = require('through');
 var SourceMapGenerator = require('source-map').SourceMapGenerator;
 var convert   = require('convert-source-map');
 
-var PREFIX = "var jade = require('jade/lib/runtime.js');\nmodule.exports=function(params) { if (params) {params.require = require;} return (\n";
+var requires = [
+	{ variable: 'jade', path: "jade/lib/runtime.js" }
+];
+var PREFIX = "module.exports=function(params) { if (params) {params.require = require;} return (\n";
 var SUFFIX = ")(params); }";
 
 var defaultJadeOptions = {
@@ -92,7 +95,13 @@ function withSourceMap(src, compiled, name) {
 
 function compile(file, template, options) {
     options.filename= file;
+    requires = requires.concat(options.requires || []);
     var fn =  jade.compile(template, options);
     var generated = fn.toString();
-    return PREFIX + withSourceMap(template, generated, file);
+    var ret = "";
+    requires.forEach(function(req) {
+      ret += "var " + req.variable + " = require('" + req.path + "');\n";
+    });
+    ret = ret + PREFIX + withSourceMap(template, generated, file);
+    return ret;
 }
